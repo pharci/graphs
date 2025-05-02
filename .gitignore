@@ -1,7 +1,9 @@
 /build
 /.vscode
+/out
 
 *.json
+*.iss
 
 # C++ objects and libs
 *.slo
