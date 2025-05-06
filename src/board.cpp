@@ -85,7 +85,7 @@ void Board::paintEvent(QPaintEvent *event)
     for (int i = 0; i < *size; i++) {
         QRectF circle(pos[i].x() - radius, pos[i].y() - radius, radius * 2, radius * 2);
         painter.drawEllipse(circle);
-        painter.drawText(circle, Qt::AlignCenter, QString::number(i + 1));
+        painter.drawText(circle, Qt::AlignCenter, (*nodes)[i]->text());
     }
 }
 
@@ -101,10 +101,11 @@ void Board::drawArrow(QPainter *painter, QPointF point, double size, double angl
     painter->restore();
 }
 
-void Board::setParams(QVector<QVector<QLineEdit*>> *matrix, int *size, QCheckBox *weighted, QCheckBox *oriented) {
+void Board::setParams(QVector<QVector<QLineEdit*>> *matrix, QVector<QLineEdit *> *nodes, int *size, QCheckBox *weighted, QCheckBox *oriented) {
     this->matrix = matrix;
     this->size = size;
     this->weighted = weighted;
     this->oriented = oriented;
+    this->nodes = nodes;
     update();
 }

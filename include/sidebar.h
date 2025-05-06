@@ -25,6 +25,7 @@ private:
 	QLineEdit *SizeEdit;
 	QGridLayout *grid;
 	QVector<QVector<QLineEdit *>> matrix;
+	QVector<QLineEdit *> nodes;
 	QCheckBox *weighted;
 	QCheckBox *oriented;
 	int size = 5;
@@ -32,4 +33,5 @@ private:
 	void paintEvent(QPaintEvent *event) override;
 	void onMatrixChanged();
 	void onOrientedChange();
+	void Generate();
 };

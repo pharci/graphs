@@ -10,10 +10,11 @@ class Board : public QWidget
 public:
     explicit Board(QWidget *parent = nullptr);
     ~Board();
-    void setParams(QVector<QVector<QLineEdit *>> *matrix, int *size, QCheckBox *weighted, QCheckBox *oriented);
+    void setParams(QVector<QVector<QLineEdit *>> *matrix, QVector<QLineEdit *> *nodes, int *size, QCheckBox *weighted, QCheckBox *oriented);
 
 protected:
     QVector<QVector<QLineEdit *>> *matrix;
+    QVector<QLineEdit *> *nodes;
     int *size;
     QCheckBox *weighted;
     QCheckBox *oriented;
