@@ -10,14 +10,12 @@ class Board : public QWidget
 public:
     explicit Board(QWidget *parent = nullptr);
     ~Board();
-    void setParams(QVector<QVector<QLineEdit *>> *matrix, QVector<QLineEdit *> *nodes, int *size, QCheckBox *weighted, QCheckBox *oriented);
+    void setParams(QVector<QVector<QLineEdit *>> *matrix, QVector<QLineEdit *> *nodes, int *size);
 
 protected:
     QVector<QVector<QLineEdit *>> *matrix;
     QVector<QLineEdit *> *nodes;
     int *size;
-    QCheckBox *weighted;
-    QCheckBox *oriented;
 
     void paintEvent(QPaintEvent *event) override;
     void drawArrow(QPainter *painter, QPointF point, double size, double angle, double distance);

@@ -2,11 +2,13 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPushButton>
-#include <QLineEdit>
-#include <QValidator>
 #include <QMessageBox>
 #include <QVector>
 #include <QLabel>
+
+#include <QLineEdit>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 
 #include <QFileDialog>
 #include <QFile>
@@ -20,33 +22,31 @@ Sidebar::Sidebar(Board *board, QWidget *parent)
     : QWidget(parent), board(board)
 {
     QVBoxLayout *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(15, 15, 15, 15);
 
-    // type
-    weighted = new QCheckBox("Взвешенный", this);
-    oriented = new QCheckBox("Ориентированный", this);
-    layout->addWidget(weighted);
-    layout->addWidget(oriented);
-    connect(weighted, &QCheckBox::clicked, this, &Sidebar::onMatrixChanged);
-    connect(oriented, &QCheckBox::clicked, this, &Sidebar::onOrientedChange);
-
-    // размер матрицы
     QHBoxLayout *SizeLayout = new QHBoxLayout();
-    QPushButton *SizeBtn = new QPushButton("Обновить", this);
+    SizeLayout->setContentsMargins(0, 0, 0, 10);
+
+    QLabel *SizeLabel = new QLabel("Size: ", this);
+    SizeLayout->addWidget(SizeLabel);
+
     SizeEdit = new QLineEdit(this);
-    SizeEdit->setPlaceholderText("Введите размер");
+    SizeEdit->setPlaceholderText("Input size");
     SizeEdit->setText("5");
+
+    QPushButton *SizeBtn = new QPushButton("Update", this);
+    connect(SizeBtn, &QPushButton::clicked, this, &Sidebar::setSize);
+
     SizeLayout->addWidget(SizeEdit);
     SizeLayout->addWidget(SizeBtn);
     layout->addLayout(SizeLayout);
 
-    connect(SizeBtn, &QPushButton::clicked, this, &Sidebar::setSize);
-
-    QPushButton *genBtn = new QPushButton("Сгенерировать", this);
-    connect(genBtn, &QPushButton::clicked, this, &Sidebar::Generate);
-
-    // матрица
     grid = new QGridLayout();
+    grid->setContentsMargins(0, 0, 0, 10);
     layout->addLayout(grid);
+
+    QPushButton *genBtn = new QPushButton("Generate", this);
+    connect(genBtn, &QPushButton::clicked, this, &Sidebar::Generate);
     layout->addWidget(genBtn);
 
     layout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding));
@@ -54,7 +54,7 @@ Sidebar::Sidebar(Board *board, QWidget *parent)
     // init
     createMatrix();
     drawMatrix();
-    board->setParams(&matrix, &nodes, &size, weighted, oriented);
+    board->setParams(&matrix, &nodes, &size);
 }
 
 Sidebar::~Sidebar() {}
@@ -63,12 +63,6 @@ void Sidebar::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-
-    QPen pen = QPen(Qt::lightGray, 1);
-    painter.setPen(pen);
-
-    painter.drawLine(0, 0, width(), 0);
-    painter.drawLine(width(), 0, width(), height());
 }
 
 void Sidebar::drawMatrix()
@@ -85,6 +79,7 @@ void Sidebar::drawMatrix()
 
         QLabel *NodeLabel = new QLabel(nodes[i]->text(), this);
         NodeLabel->setAlignment(Qt::AlignCenter);
+        NodeLabel->setFixedWidth(40);
         grid->addWidget(NodeLabel, 0, i + 1);
 
         connect(nodes[i], &QLineEdit::textChanged, this, [=](const QString &text)
@@ -99,7 +94,7 @@ void Sidebar::drawMatrix()
         }
     }
 
-    QLabel *GridLabel = new QLabel("Имя", this);
+    QLabel *GridLabel = new QLabel("State", this);
     GridLabel->setAlignment(Qt::AlignCenter);
     grid->addWidget(GridLabel, 0, 0);
 }
@@ -117,6 +112,7 @@ void Sidebar::createMatrix()
         nodes[i] = new QLineEdit;
         nodes[i]->setText(QString::number(i));
         nodes[i]->setAlignment(Qt::AlignCenter);
+        nodes[i]->setFixedWidth(50);
         connect(nodes[i], &QLineEdit::textChanged, this, &Sidebar::onMatrixChanged);
 
         matrix[i].resize(size);
@@ -126,32 +122,12 @@ void Sidebar::createMatrix()
             matrix[i][j]->setText("0");
             matrix[i][j]->setAlignment(Qt::AlignCenter);
             matrix[i][j]->setFixedSize(40, 40);
+            QRegularExpression rx("^[01]{0,1}$");
+            matrix[i][j]->setValidator(new QRegularExpressionValidator(rx, this));
 
-            if (!oriented->isChecked())
-            {
-                connect(matrix[i][j], &QLineEdit::textChanged, this, [=](const QString &text)
-                        { matrix[j][i]->setText(matrix[i][j]->text()); });
-            }
             connect(matrix[i][j], &QLineEdit::textChanged, this, &Sidebar::onMatrixChanged);
         }
     }
-}
-
-void Sidebar::onOrientedChange() {
-    for (int i = 0; i < matrix.size(); ++i) {
-        for (int j = 0; j < matrix[i].size(); ++j) {
-            if (i != j) {
-                matrix[i][j]->disconnect();
-                if (!oriented->isChecked())
-                {
-                    connect(matrix[i][j], &QLineEdit::textChanged, this, [=](const QString &text)
-                            { matrix[j][i]->setText(matrix[i][j]->text()); });
-                }
-                connect(matrix[i][j], &QLineEdit::textChanged, this, &Sidebar::onMatrixChanged);
-            }
-        }
-    }
-    onMatrixChanged();
 }
 
 void Sidebar::setSize(int sizeParam)
@@ -213,16 +189,4 @@ void Sidebar::onMatrixChanged()
 
 QVector<QVector<QLineEdit *>>* Sidebar::getMatrix() {
     return &matrix;
-}
-
-bool Sidebar::isWeighted() { return weighted->isChecked(); }
-bool Sidebar::isOriented() { return oriented->isChecked(); }
-
-void Sidebar::setWeighted(bool flag) {
-    if (flag) weighted->setChecked(true);
-    else weighted->setChecked(false);
-}
-void Sidebar::setOriented(bool flag) {
-    if (flag) oriented->setChecked(true);
-    else oriented->setChecked(false);
 }

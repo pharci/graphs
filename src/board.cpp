@@ -21,10 +21,6 @@ void Board::paintEvent(QPaintEvent *event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    QPen pen = QPen(Qt::lightGray, 1);
-    painter.setPen(pen);
-    painter.drawLine(0, 0, width(), 0);
-
     painter.setPen(Qt::black);
 
     int radius = 20;
@@ -52,10 +48,8 @@ void Board::paintEvent(QPaintEvent *event)
                     QRectF loopRect(loopCenter.x() - loopRadius, loopCenter.y() - loopRadius, 2 * loopRadius, 2 * loopRadius);
                     painter.drawArc(loopRect, 45 * 16, 270 * 16);
 
-                    if (oriented->isChecked()) {
-                        double angle = (45.0) * M_PI / 180.0;
-                        drawArrow(&painter, QPointF(pos[i].x() + radius, pos[i].y()), 10, angle, loopRadius);
-                    }                
+                    double angle = (45.0) * M_PI / 180.0;
+                    drawArrow(&painter, QPointF(pos[i].x() + radius, pos[i].y()), 10, angle, loopRadius);
                 } else {
                     QLineF line(pos[i], pos[j]);
                     double lambda = (line.length() - radius) / radius;
@@ -64,17 +58,9 @@ void Board::paintEvent(QPaintEvent *event)
 
                     painter.drawLine(pos[i].x(), pos[i].y(), x, y);
 
-                    if (weighted->isChecked()) { 
-                        painter.setPen(Qt::gray);
-                        double offset = 10;
-                        painter.drawText((pos[i].x() + x) / 2 + offset, (pos[i].y() + y) / 2 + offset, QString::number(itemValue));
-                    }
-
                     painter.setPen(Qt::gray);
-                    if (oriented->isChecked()) {   
-                        double angle = atan2(y - pos[i].y(), x - pos[i].x());
-                        drawArrow(&painter, QPointF(x, y), 10, angle, 1);
-                    }
+                    double angle = atan2(y - pos[i].y(), x - pos[i].x());
+                    drawArrow(&painter, QPointF(x, y), 10, angle, 1);
                 }
             }
         }
@@ -101,11 +87,9 @@ void Board::drawArrow(QPainter *painter, QPointF point, double size, double angl
     painter->restore();
 }
 
-void Board::setParams(QVector<QVector<QLineEdit*>> *matrix, QVector<QLineEdit *> *nodes, int *size, QCheckBox *weighted, QCheckBox *oriented) {
+void Board::setParams(QVector<QVector<QLineEdit*>> *matrix, QVector<QLineEdit *> *nodes, int *size) {
     this->matrix = matrix;
     this->size = size;
-    this->weighted = weighted;
-    this->oriented = oriented;
     this->nodes = nodes;
     update();
 }

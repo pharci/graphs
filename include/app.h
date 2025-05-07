@@ -9,7 +9,12 @@ class App : public QMainWindow
 public:
     App(QWidget *parent = nullptr);
     Sidebar *sidebar;
+    Board *board;
     ~App();
+    void changeEvent(QEvent *event) override;
     void openMatrixFromFile();
     void saveMatrixToFile();
+    void sidebarPallet(QWidget* widget, bool darkTheme);
+    void boardPallet(QWidget* widget, bool darkTheme);
+    bool isDarkThemeActive();
 };

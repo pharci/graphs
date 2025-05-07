@@ -10,23 +10,29 @@
 #include <QFileDialog>
 #include <QMessageBox>
 
+#include <QGuiApplication>
+#include <QStyleHints>
+
+
+#include <QFont>
+
 #include "json.hpp"
 #include <fstream>
 
 App::App(QWidget *parent) : QMainWindow(parent)
 {
-    QMenuBar *menuBar = new QMenuBar(this);
-    QMenu *fileMenu = new QMenu("Файл", this);
+    // QMenuBar *menuBar = new QMenuBar(this);
+    // QMenu *fileMenu = new QMenu("Файл", this);
 
-    QAction *openAction = new QAction("Открыть", this);
-    QAction *saveAction = new QAction("Сохранить", this);
-    fileMenu->addAction(saveAction);
-    fileMenu->addAction(openAction);
-    connect(openAction, &QAction::triggered, this, &App::openMatrixFromFile);
-    connect(saveAction, &QAction::triggered, this, &App::saveMatrixToFile);
+    // QAction *openAction = new QAction("Открыть", this);
+    // QAction *saveAction = new QAction("Сохранить", this);
+    // fileMenu->addAction(saveAction);
+    // fileMenu->addAction(openAction);
+    // connect(openAction, &QAction::triggered, this, &App::openMatrixFromFile);
+    // connect(saveAction, &QAction::triggered, this, &App::saveMatrixToFile);
 
-    menuBar->addMenu(fileMenu);
-    setMenuBar(menuBar);
+    // menuBar->addMenu(fileMenu);
+    // setMenuBar(menuBar);
 
     QWidget *central = new QWidget(this);
     setCentralWidget(central);
@@ -35,18 +41,74 @@ App::App(QWidget *parent) : QMainWindow(parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
-    Board *board = new Board(this);
+    board = new Board(this);
+
     sidebar = new Sidebar(board, this);
+    sidebar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+
 
     layout->addWidget(sidebar);
     layout->addWidget(board);
 
-    sidebar->setFixedWidth(300);
     board->setMinimumWidth(500);
     board->setMinimumHeight(500);
+
+    bool dark = isDarkThemeActive();
+    boardPallet(board, dark);
+    sidebarPallet(sidebar, dark);
 }
 
 App::~App() {}
+
+void App::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::ThemeChange) {
+        bool dark = isDarkThemeActive();
+        boardPallet(board, dark);
+        sidebarPallet(sidebar, dark);
+    }
+
+    QMainWindow::changeEvent(event); // обязательно вызывать базовый метод
+}
+
+void App::sidebarPallet(QWidget* widget, bool darkTheme) {
+    QPalette palette = widget->palette();
+
+    if (darkTheme) {
+        palette.setColor(QPalette::Window, QColor("#171717"));
+        palette.setColor(QPalette::WindowText, Qt::white);
+    } else {
+        palette.setColor(QPalette::Window, QColor("#F9F9F9"));
+        palette.setColor(QPalette::WindowText, Qt::black);
+    }
+    widget->setPalette(palette);
+    widget->setAutoFillBackground(true);
+
+    QFont font;
+    font.setBold(true); 
+    font.setWeight(QFont::DemiBold);
+    widget->setFont(font);
+}
+
+void App::boardPallet(QWidget* widget, bool darkTheme) {
+    QPalette palette = widget->palette();
+
+    if (darkTheme) {
+        palette.setColor(QPalette::Window, QColor("#212121"));
+        palette.setColor(QPalette::WindowText, Qt::white);
+    } else {
+        palette.setColor(QPalette::Window, QColor("#FFFFFF"));  
+        palette.setColor(QPalette::WindowText, Qt::black);
+    }
+
+    widget->setPalette(palette);
+    widget->setAutoFillBackground(true);
+
+    QFont font;
+    font.setBold(true); 
+    font.setWeight(QFont::DemiBold);
+    widget->setFont(font);
+}
 
 void App::openMatrixFromFile() {
     QString filename = QFileDialog::getOpenFileName(this, "Открыть матрицу", "", "Text Files (*.json)");
@@ -77,12 +139,8 @@ void App::openMatrixFromFile() {
 
     auto matrix_json = j["matrix"];
     int size = j["size"];
-    bool oriented = j["oriented"];
-    bool weighted = j["weighted"];
 
     sidebar->setSize(size);
-    sidebar->setWeighted(oriented);
-    sidebar->setOriented(weighted);
     sidebar->createMatrix();
     QVector<QVector<QLineEdit *>>* matrix =  sidebar->getMatrix();
 
@@ -120,8 +178,6 @@ void App::saveMatrixToFile() {
         j["matrix"].push_back(new_row);
     }
 
-    j["oriented"] = sidebar->isOriented();
-    j["weighted"] = sidebar->isWeighted();
     j["size"] = matrix->size();
 
     std::ofstream file(filename.toStdString());
@@ -132,4 +188,11 @@ void App::saveMatrixToFile() {
         return;
     }
     QMessageBox::information(this, "Успех", "Матрица успешно сохранена.");
+}
+
+
+bool App::isDarkThemeActive()
+{
+    auto scheme = QGuiApplication::styleHints()->colorScheme();
+    return scheme == Qt::ColorScheme::Dark;
 }
