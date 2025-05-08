@@ -15,6 +15,6 @@ public:
     void openMatrixFromFile();
     void saveMatrixToFile();
     void sidebarPallet(QWidget* widget, bool darkTheme);
-    void boardPallet(QWidget* widget, bool darkTheme);
+    void boardPallet(Board* widget, bool darkTheme);
     bool isDarkThemeActive();
 };

@@ -13,6 +13,7 @@
 #include <QGuiApplication>
 #include <QStyleHints>
 
+#include <QGraphicsView>
 
 #include <QFont>
 
@@ -21,18 +22,18 @@
 
 App::App(QWidget *parent) : QMainWindow(parent)
 {
-    // QMenuBar *menuBar = new QMenuBar(this);
-    // QMenu *fileMenu = new QMenu("Файл", this);
+    QMenuBar *menuBar = new QMenuBar(this);
+    QMenu *fileMenu = new QMenu("Файл", this);
 
-    // QAction *openAction = new QAction("Открыть", this);
-    // QAction *saveAction = new QAction("Сохранить", this);
-    // fileMenu->addAction(saveAction);
-    // fileMenu->addAction(openAction);
-    // connect(openAction, &QAction::triggered, this, &App::openMatrixFromFile);
-    // connect(saveAction, &QAction::triggered, this, &App::saveMatrixToFile);
+    QAction *openAction = new QAction("Открыть", this);
+    QAction *saveAction = new QAction("Сохранить", this);
+    fileMenu->addAction(saveAction);
+    fileMenu->addAction(openAction);
+    connect(openAction, &QAction::triggered, this, &App::openMatrixFromFile);
+    connect(saveAction, &QAction::triggered, this, &App::saveMatrixToFile);
 
-    // menuBar->addMenu(fileMenu);
-    // setMenuBar(menuBar);
+    menuBar->addMenu(fileMenu);
+    setMenuBar(menuBar);
 
     QWidget *central = new QWidget(this);
     setCentralWidget(central);
@@ -41,17 +42,21 @@ App::App(QWidget *parent) : QMainWindow(parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
-    board = new Board(this);
+    board = new Board();
+    board->setSceneRect(0, 0, 500, 500);
 
     sidebar = new Sidebar(board, this);
     sidebar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
 
 
     layout->addWidget(sidebar);
-    layout->addWidget(board);
 
-    board->setMinimumWidth(500);
-    board->setMinimumHeight(500);
+    QGraphicsView *view = new QGraphicsView(board);
+    view->setRenderHint(QPainter::Antialiasing);
+    view->setMouseTracking(true);
+    view->show();
+
+    layout->addWidget(view);
 
     bool dark = isDarkThemeActive();
     boardPallet(board, dark);
@@ -90,24 +95,12 @@ void App::sidebarPallet(QWidget* widget, bool darkTheme) {
     widget->setFont(font);
 }
 
-void App::boardPallet(QWidget* widget, bool darkTheme) {
-    QPalette palette = widget->palette();
-
+void App::boardPallet(Board* scene, bool darkTheme) {
     if (darkTheme) {
-        palette.setColor(QPalette::Window, QColor("#212121"));
-        palette.setColor(QPalette::WindowText, Qt::white);
+        scene->setBackgroundBrush(QColor("#212121"));
     } else {
-        palette.setColor(QPalette::Window, QColor("#FFFFFF"));  
-        palette.setColor(QPalette::WindowText, Qt::black);
+        scene->setBackgroundBrush(Qt::white);
     }
-
-    widget->setPalette(palette);
-    widget->setAutoFillBackground(true);
-
-    QFont font;
-    font.setBold(true); 
-    font.setWeight(QFont::DemiBold);
-    widget->setFont(font);
 }
 
 void App::openMatrixFromFile() {

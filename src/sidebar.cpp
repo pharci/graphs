@@ -113,7 +113,7 @@ void Sidebar::createMatrix()
         nodes[i]->setText(QString::number(i));
         nodes[i]->setAlignment(Qt::AlignCenter);
         nodes[i]->setFixedWidth(50);
-        connect(nodes[i], &QLineEdit::textChanged, this, &Sidebar::onMatrixChanged);
+        connect(nodes[i], &QLineEdit::textChanged, board, &Board::createNodes);
 
         matrix[i].resize(size);
         for (int j = 0; j < size; j++)
@@ -122,10 +122,24 @@ void Sidebar::createMatrix()
             matrix[i][j]->setText("0");
             matrix[i][j]->setAlignment(Qt::AlignCenter);
             matrix[i][j]->setFixedSize(40, 40);
-            QRegularExpression rx("^[01]{0,1}$");
-            matrix[i][j]->setValidator(new QRegularExpressionValidator(rx, this));
 
-            connect(matrix[i][j], &QLineEdit::textChanged, this, &Sidebar::onMatrixChanged);
+            connect(matrix[i][j], &QLineEdit::textEdited, this, [edit = matrix[i][j]](const QString &text) {
+                int pos = edit->cursorPosition();
+                if (!text.isEmpty()) {
+                    QChar inserted = text[pos - 1];
+                    if (inserted == '0' || inserted == '1') {
+                        edit->blockSignals(true);
+                        edit->setText(QString(inserted));
+                        edit->blockSignals(false);
+                    } else {
+                        edit->blockSignals(true);
+                        edit->setText("0");
+                        edit->blockSignals(false);
+                    }
+                }
+            });
+
+            connect(matrix[i][j], &QLineEdit::textChanged, board, &Board::createLines);
         }
     }
 }
@@ -138,24 +152,24 @@ void Sidebar::setSize(int sizeParam)
         SizeEdit->setText(QString::number(newSize));
     }
 
-    if (newSize > 1 && newSize < 10)
+    if (newSize > 1 && newSize < 16)
     {
         size = newSize;
         createMatrix();
         drawMatrix();
-        board->update();
+        board->createNodes();
     }
     else
     {
         QMessageBox msgBox;
-        msgBox.setText("Введите число от 2 до 9.");
+        msgBox.setText("Введите число от 2 до 15.");
         msgBox.exec();
     }
 }
 
 void Sidebar::Generate()
 {
-    QString filename = QFileDialog::getSaveFileName(this, "Сохранить матрицу", "", "Text Files (*.cpp)");
+    QString filename = QFileDialog::getSaveFileName(this, "Сгенерировать", "", "Text Files (*.cpp)");
     if (filename.isEmpty()) return;
 
 
@@ -163,18 +177,66 @@ void Sidebar::Generate()
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream out(&file);
         out << "#include <iostream>\n";
-        out << "enum class State { ";
-
-        for (const auto& row : matrix) {
-            std::vector<int> new_row;
-            for (const auto& cell : row) {
-                bool ok;
-                int value = cell->text().toInt(&ok);
-                out << (ok ? value : 0);
-            }
+        out << "#include <variant>\n\n";
+        out << "namespace state {\n";
+        for (auto state : nodes) {
+            out << "    struct _" << (state->text()) << " {\n";
+            out << "        void PrintState() const { std::cout << " << "\"State: " << state->text() << "\" << std::endl; }\n";
+            out << "        using Next = _1;\n";
+            out << "    };\n\n";
         }
+        out << "}\n\n";
+        out << "using State = std::variant<";
+        for (int i = 0; i < nodes.size(); ++i) {
+            out << "state::_" << (nodes[i]->text());
+            if (i != nodes.size() - 1) out << ", ";
+        }
+        out << ">;\n\n";
+        out << "auto StateReporter = [](const auto& d){ d.PrintState(); };\n";
+        out << "auto nextProcessor = [](const auto& s) -> State { return typename std::decay_t<decltype(s)>::Next {}; };\n\n";
 
-        out << " }";
+        out << "class StateMachine {\n";
+        out << "private:\n";
+        out << "    State state_;\n";
+        out << "public:\n";
+        out << "    void start();\n";
+        out << "    void reportCurrentState();\n";
+        out << "    void next();\n";
+        out << "};\n\n";
+
+        out << "void StateMachine::start() {\n";
+        out << "    state_ = state::_" << (nodes[0]->text()) << " {};\n";
+        out << "}\n\n";
+
+        out << "void StateMachine::reportCurrentState() {\n";
+        out << "    std::visit(StateReporter, state_);\n";
+        out << "}\n\n";
+
+        out << "void StateMachine::next() {\n";
+        out << "    state_ = std::visit(nextProcessor, state_);\n";
+        out << "}\n\n";
+
+        out << "int main() {\n";
+        out << "    StateMachine program;\n";
+        out << "    program.start();\n";
+        out << "    try {\n";
+        out << "        program.reportCurrentState();\n";
+        out << "        program.next();\n";
+        out << "        program.reportCurrentState();\n";
+        out << "    }\n";
+        out << "    catch(std::exception& ex){\n";
+        out << "        std::cout << \"Exception: \" << ex.what() << std::endl;\n";
+        out << "    }\n";
+        out << "}\n";
+        
+        // for (const auto& row : matrix) {
+        //     std::vector<int> new_row;
+        //     for (const auto& cell : row) {
+        //         bool ok;
+        //         int value = cell->text().toInt(&ok);
+        //         out << (ok ? value : 0);
+        //     }
+        // }
 
         file.close();
     } else {
@@ -182,11 +244,10 @@ void Sidebar::Generate()
     }
 }
 
-void Sidebar::onMatrixChanged()
-{
-    board->update();
-}
-
 QVector<QVector<QLineEdit *>>* Sidebar::getMatrix() {
     return &matrix;
+}
+
+QVector<QLineEdit *>* Sidebar::getNodes() {
+    return &nodes;
 }

@@ -1,4 +1,5 @@
 #include "board.h"
+#include "node.h"
 #include <QPainter>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -9,87 +10,135 @@
 #include <QCheckBox>
 #include <QPolygon>
 
-Board::Board(QWidget *parent) : QWidget(parent)
+Board::Board(QGraphicsScene *parent) : QGraphicsScene(parent)
 {
-    setMouseTracking(true);
 }
 
 Board::~Board() {}
 
-void Board::paintEvent(QPaintEvent *event)
-{
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
-
-    painter.setPen(Qt::black);
-
-    int radius = 20;
+void Board::createNodes() {
     int cx = width() / 2;
     int cy = height() / 2;
     int r = qMin(cx, cy) - 50;
 
-    QVector<QPointF> pos;
-
+    clear();
+    nodeObjs.clear();
+    nodeObjs.resize(*size);
     for (int i = 0; i < *size; i++) {
         double angle = (2 * M_PI / *size) * i - M_PI / 2;
         int x = cx + r * cos(angle);
         int y = cy + r * sin(angle);
-        pos.append(QPointF(x, y));
+
+        Node* obj = new Node(nullptr, 25, Qt::lightGray, (*nodes)[i]->text());
+        obj->setPos(x, y);
+        connect(obj, &Node::positionChanged, this, &Board::createLines);
+        addItem(obj);
+
+        nodeObjs[i] = obj;
+    }
+
+    createLines();
+}
+
+void Board::createLines() {
+    for (QGraphicsItem *item : this->items()) {
+        if (auto *base = dynamic_cast<QGraphicsLineItem *>(item)) {
+            removeItem(item);
+        }
+        if (auto *base = dynamic_cast<QGraphicsPathItem *>(item)) {
+            removeItem(item);
+        }
+        if (auto *base = dynamic_cast<QGraphicsPolygonItem *>(item)) {
+            removeItem(item);
+        }
     }
 
     for (int i = 0; i < *size; i++) {
         for (int j = 0; j < *size; j++) {
-            int itemValue = (*matrix)[i][j]->text().toInt();
-            if (itemValue > 0) {
-                painter.setPen(Qt::gray);
-                if (i == j) {
-                    double loopRadius = 30.0;
-                    QPointF loopCenter = pos[i] + QPointF(-radius, 0);
-                    QRectF loopRect(loopCenter.x() - loopRadius, loopCenter.y() - loopRadius, 2 * loopRadius, 2 * loopRadius);
-                    painter.drawArc(loopRect, 45 * 16, 270 * 16);
+            int val = (*matrix)[i][j]->text().toInt();
+            int val_invers = (*matrix)[j][i]->text().toInt();
 
-                    double angle = (45.0) * M_PI / 180.0;
-                    drawArrow(&painter, QPointF(pos[i].x() + radius, pos[i].y()), 10, angle, loopRadius);
-                } else {
-                    QLineF line(pos[i], pos[j]);
-                    double lambda = (line.length() - radius) / radius;
-                    double x = (pos[i].x() + lambda * pos[j].x()) / (1 + lambda); 
-                    double y = (pos[i].y() + lambda * pos[j].y()) / (1 + lambda); 
-
-                    painter.drawLine(pos[i].x(), pos[i].y(), x, y);
-
-                    painter.setPen(Qt::gray);
-                    double angle = atan2(y - pos[i].y(), x - pos[i].x());
-                    drawArrow(&painter, QPointF(x, y), 10, angle, 1);
-                }
+            if (val && !val_invers && i != j) {
+                drawLine(i, j);
+            }
+            else if (val && val_invers && i != j) {
+                drawDoubleLine(i, j);
+            }
+            else if (val && i == j) {
+                drawLoop(i);
             }
         }
     }
-
-    painter.setBrush(Qt::gray);
-    painter.setPen(Qt::black);
-    for (int i = 0; i < *size; i++) {
-        QRectF circle(pos[i].x() - radius, pos[i].y() - radius, radius * 2, radius * 2);
-        painter.drawEllipse(circle);
-        painter.drawText(circle, Qt::AlignCenter, (*nodes)[i]->text());
-    }
 }
 
-void Board::drawArrow(QPainter *painter, QPointF point, double size, double angle, double distance) {
-    QPolygonF arrow;
-    arrow << QPointF(0, 0) << QPointF(-size, size / 2) << QPointF(-size, -size / 2);
-    QPointF top(point.x() - distance * cos(angle), point.y() - distance * sin(angle));
-    painter->save();
-    painter->translate(top);
-    painter->rotate(angle * 180.0 / M_PI);
-    painter->setBrush(Qt::black);
-    painter->drawPolygon(arrow);
-    painter->restore();
+void Board::drawDoubleLine(int nodeIndexFrom, int nodeIndexTo) {
+    qreal dx = nodeObjs[nodeIndexTo]->pos().x() - nodeObjs[nodeIndexFrom]->pos().x();
+    qreal dy = nodeObjs[nodeIndexTo]->pos().y() - nodeObjs[nodeIndexFrom]->pos().y();
+    qreal length = std::hypot(dx, dy);
+
+    QPointF alongOffset(dx / length * 25.0, dy / length * 25.0);
+    QPointF sideOffset(-dy / length * 10.0, dx / length * 10.0);
+
+    QPointF p1 = nodeObjs[nodeIndexFrom]->pos() + alongOffset + sideOffset;
+    QPointF p2 = nodeObjs[nodeIndexTo]->pos() - alongOffset + sideOffset;
+
+    addLine(QLineF(p1, p2), QPen(Qt::white, 2));
+    drawArrow(p2, atan2(dy, dx));
+}
+
+void Board::drawLine(int nodeIndexFrom, int nodeIndexTo) {
+    qreal dx = nodeObjs[nodeIndexTo]->pos().x() - nodeObjs[nodeIndexFrom]->pos().x();
+    qreal dy = nodeObjs[nodeIndexTo]->pos().y() - nodeObjs[nodeIndexFrom]->pos().y();
+    qreal length = std::hypot(dx, dy);
+    
+    QPointF alongOffset(dx / length * 25.0, dy / length * 25.0);
+
+    QPointF p1 = nodeObjs[nodeIndexFrom]->pos() + alongOffset;
+    QPointF p2 = nodeObjs[nodeIndexTo]->pos() - alongOffset;
+
+    addLine(QLineF(p1, p2), QPen(Qt::white, 2));
+    drawArrow(p2, atan2(dy, dx));
+}
+
+void Board::drawLoop(int nodeIndex) {
+    QPointF center = nodeObjs[nodeIndex]->pos();
+    qreal loopRadius = 30.0;
+
+    QRectF arcRect(center.x() - loopRadius - 25, center.y() - loopRadius, 2 * loopRadius, 2 * loopRadius);
+
+    QLineF line(QPointF(center.x()- 25, center.y()), QPointF(center.x(), center.y() - 25));
+    qreal angleDegrees = line.angle() + 10;
+
+    QPainterPath path;
+    path.arcMoveTo(arcRect, angleDegrees);
+    path.arcTo(arcRect, angleDegrees, 360 - 2 * angleDegrees);
+
+    QGraphicsPathItem* loop = new QGraphicsPathItem(path);
+    loop->setPen(QPen(Qt::darkGray, 2));
+    addItem(loop);
+
+    qreal angle = (360 - angleDegrees) * M_PI / 180.0;
+    QPointF endPoint = arcRect.center() + QPointF(cos(angle) * loopRadius, sin(angle) * loopRadius);
+
+    drawArrow(endPoint, angle + M_PI / 2);
+}
+
+void Board::drawArrow(QPointF point, qreal angle) {
+    QPolygonF arrowHead;
+    arrowHead << point
+            << (point - QPointF(cos(angle - M_PI / 6) * 10, sin(angle - M_PI / 6) * 10))
+            << (point - QPointF(cos(angle + M_PI / 6) * 10, sin(angle + M_PI / 6) * 10));
+
+    QGraphicsPolygonItem* arrow = new QGraphicsPolygonItem(arrowHead);
+    arrow->setBrush(Qt::darkGray);
+    arrow->setPen(QPen(Qt::darkGray));
+    addItem(arrow);
 }
 
 void Board::setParams(QVector<QVector<QLineEdit*>> *matrix, QVector<QLineEdit *> *nodes, int *size) {
     this->matrix = matrix;
     this->size = size;
     this->nodes = nodes;
+    createNodes();
     update();
 }
